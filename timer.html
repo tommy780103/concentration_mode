@@ -32,11 +32,21 @@
                 this.isRunning = false;
                 this.isBreakTime = false;
                 this.interval = null;
+                this.isVerticalMode = window.location.search.includes('vertical=true');
                 
                 this.initializeElements();
                 this.bindEvents();
                 this.updateDisplay();
                 this.listenForMessages();
+                this.applyVerticalStyles();
+                this.requestNotificationPermission();
+            }
+            
+            requestNotificationPermission() {
+                // ページ読み込み時に通知の許可を求める
+                if ('Notification' in window && Notification.permission === 'default') {
+                    Notification.requestPermission();
+                }
             }
 
             initializeElements() {
@@ -76,8 +86,28 @@
                         document.documentElement.requestFullscreen().catch(err => {
                             console.log('Fullscreen request failed:', err);
                         });
+                    } else if (event.data.action === 'setVerticalMode') {
+                        this.isVerticalMode = true;
+                        this.applyVerticalStyles();
                     }
                 });
+            }
+            
+            applyVerticalStyles() {
+                if (this.isVerticalMode) {
+                    // 縦型ディスプレイ用のスタイル調整
+                    this.display.style.fontSize = '25vh';
+                    this.label.style.fontSize = '5vh';
+                    document.querySelector('.timer-controls').style.flexDirection = 'column';
+                    document.querySelector('.timer-controls').style.width = '80%';
+                    
+                    const buttons = document.querySelectorAll('.timer-control-btn');
+                    buttons.forEach(btn => {
+                        btn.style.width = '100%';
+                        btn.style.fontSize = '3vh';
+                        btn.style.padding = '3vh 5vh';
+                    });
+                }
             }
 
             start() {
@@ -154,22 +184,47 @@
             }
 
             playNotification() {
-                // Create a simple beep sound
-                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                const oscillator = audioContext.createOscillator();
-                const gainNode = audioContext.createGain();
+                // 3回ビープ音を鳴らす
+                const playBeep = (frequency, delay) => {
+                    setTimeout(() => {
+                        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                        const oscillator = audioContext.createOscillator();
+                        const gainNode = audioContext.createGain();
+                        
+                        oscillator.connect(gainNode);
+                        gainNode.connect(audioContext.destination);
+                        
+                        // 作業終了時は高い音、休憩終了時は低い音
+                        oscillator.frequency.value = frequency;
+                        oscillator.type = 'sine';
+                        
+                        // 音量を上げて、より長く鳴らす
+                        gainNode.gain.setValueAtTime(0.5, audioContext.currentTime);
+                        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.8);
+                        
+                        oscillator.start(audioContext.currentTime);
+                        oscillator.stop(audioContext.currentTime + 0.8);
+                    }, delay);
+                };
                 
-                oscillator.connect(gainNode);
-                gainNode.connect(audioContext.destination);
+                // 作業終了時と休憩終了時で異なる音を鳴らす
+                const baseFrequency = this.isBreakTime ? 600 : 1000;
                 
-                oscillator.frequency.value = 800;
-                oscillator.type = 'sine';
+                // 3回鳴らす（0ms, 1000ms, 2000ms後）
+                playBeep(baseFrequency, 0);
+                playBeep(baseFrequency * 1.2, 1000);
+                playBeep(baseFrequency * 1.5, 2000);
                 
-                gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
-                
-                oscillator.start(audioContext.currentTime);
-                oscillator.stop(audioContext.currentTime + 0.5);
+                // ブラウザの通知APIも使用（許可が必要）
+                if ('Notification' in window && Notification.permission === 'granted') {
+                    const message = this.isBreakTime ? '休憩時間です！' : '作業時間です！';
+                    new Notification('ポモドーロタイマー', {
+                        body: message,
+                        icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y="75" font-size="75">⏰</text></svg>'
+                    });
+                } else if ('Notification' in window && Notification.permission !== 'denied') {
+                    Notification.requestPermission();
+                }
             }
         }
 
