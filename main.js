@@ -23,11 +23,18 @@ class FocusModeController {
         this.normalModeBtn = document.getElementById('normal-mode-btn');
         this.workDurationInput = document.getElementById('work-duration');
         this.breakDurationInput = document.getElementById('break-duration');
+        this.windowButtons = document.getElementById('window-buttons');
+        this.openTimerBtn = document.getElementById('open-timer-btn');
+        this.openBlackBtn = document.getElementById('open-black-btn');
     }
 
     bindEvents() {
         this.focusModeBtn.addEventListener('click', () => this.startFocusMode());
         this.normalModeBtn.addEventListener('click', () => this.endFocusMode());
+        
+        // 個別のウィンドウ開くボタン
+        this.openTimerBtn.addEventListener('click', () => this.openTimerWindow());
+        this.openBlackBtn.addEventListener('click', () => this.openBlackWindow());
         
         this.workDurationInput.addEventListener('change', (e) => {
             this.workDuration = parseInt(e.target.value);
@@ -56,14 +63,20 @@ class FocusModeController {
         this.isInFocusMode = true;
         this.focusModeBtn.style.display = 'none';
         this.normalModeBtn.style.display = 'block';
+        this.windowButtons.style.display = 'block';
         
-        this.openAdditionalWindows();
+        // まずタイマーだけ開く
+        this.openTimerWindow();
+        
+        // 黒画面を開くボタンを強調表示
+        this.openBlackBtn.style.animation = 'pulse 2s infinite';
     }
 
     endFocusMode() {
         this.isInFocusMode = false;
         this.focusModeBtn.style.display = 'block';
         this.normalModeBtn.style.display = 'none';
+        this.windowButtons.style.display = 'none';
         
         if (this.timerWindow && !this.timerWindow.closed) {
             this.timerWindow.close();
@@ -73,6 +86,94 @@ class FocusModeController {
         }
         if (this.blackWindow2 && !this.blackWindow2.closed) {
             this.blackWindow2.close();
+        }
+    }
+    
+    openTimerWindow() {
+        if (!this.timerWindow || this.timerWindow.closed) {
+            const timerFeatures = `width=${this.displays.vertical.width},height=${this.displays.vertical.height},left=${this.displays.main.width},top=0`;
+            console.log('Opening timer window...');
+            this.timerWindow = window.open('timer.html?vertical=true', 'timerWindow', timerFeatures);
+            
+            if (this.timerWindow) {
+                console.log('Timer window opened successfully');
+                this.openTimerBtn.style.opacity = '0.5';
+                this.openTimerBtn.disabled = true;
+                setTimeout(() => {
+                    this.updateTimerWindow();
+                    this.sendMessageToWindow(this.timerWindow, 'setVerticalMode');
+                }, 1000);
+            } else {
+                alert('ポップアップがブロックされています。ブラウザの設定でこのサイトのポップアップを許可してください。');
+            }
+        }
+    }
+    
+    openBlackWindow() {
+        if (!this.blackWindow1 || this.blackWindow1.closed) {
+            const macbookFeatures = `width=${this.displays.macbook.width},height=${this.displays.macbook.height},left=0,top=${this.displays.main.height}`;
+            console.log('Opening black window...');
+            this.blackWindow1 = window.open('about:blank', 'blackWindow1', macbookFeatures);
+            
+            if (this.blackWindow1) {
+                // 黒画面のHTMLを直接書き込む
+                this.blackWindow1.document.write(`
+                    <!DOCTYPE html>
+                    <html lang="ja">
+                    <head>
+                        <meta charset="UTF-8">
+                        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                        <title>集中モード - ブラックスクリーン</title>
+                        <style>
+                            body {
+                                margin: 0;
+                                padding: 0;
+                                background: #1a1a1a;
+                                min-height: 100vh;
+                                display: flex;
+                                justify-content: center;
+                                align-items: center;
+                                cursor: none;
+                                overflow: hidden;
+                            }
+                            .message {
+                                color: #333;
+                                font-size: 1.5rem;
+                                opacity: 0.1;
+                                user-select: none;
+                                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+                            }
+                        </style>
+                    </head>
+                    <body>
+                        <div class="message">集中モード実行中</div>
+                        <script>
+                            document.body.addEventListener('dblclick', () => {
+                                if (!document.fullscreenElement) {
+                                    document.documentElement.requestFullscreen();
+                                } else {
+                                    document.exitFullscreen();
+                                }
+                            });
+                            let cursorTimeout;
+                            function hideCursor() { document.body.style.cursor = 'none'; }
+                            function showCursor() {
+                                document.body.style.cursor = 'default';
+                                clearTimeout(cursorTimeout);
+                                cursorTimeout = setTimeout(hideCursor, 2000);
+                            }
+                            document.addEventListener('mousemove', showCursor);
+                            cursorTimeout = setTimeout(hideCursor, 2000);
+                        </script>
+                    </body>
+                    </html>
+                `);
+                this.blackWindow1.document.close();
+                console.log('Black window opened successfully');
+                this.openBlackBtn.style.opacity = '0.5';
+                this.openBlackBtn.style.animation = 'none';
+                this.openBlackBtn.disabled = true;
+            }
         }
     }
 

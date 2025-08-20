@@ -96,16 +96,16 @@
             applyVerticalStyles() {
                 if (this.isVerticalMode) {
                     // 縦型ディスプレイ用のスタイル調整
-                    this.display.style.fontSize = '25vh';
-                    this.label.style.fontSize = '5vh';
+                    this.display.style.fontSize = '12vh';
+                    this.label.style.fontSize = '3vh';
                     document.querySelector('.timer-controls').style.flexDirection = 'column';
                     document.querySelector('.timer-controls').style.width = '80%';
                     
                     const buttons = document.querySelectorAll('.timer-control-btn');
                     buttons.forEach(btn => {
                         btn.style.width = '100%';
-                        btn.style.fontSize = '3vh';
-                        btn.style.padding = '3vh 5vh';
+                        btn.style.fontSize = '2.5vh';
+                        btn.style.padding = '2vh 4vh';
                     });
                 }
             }
