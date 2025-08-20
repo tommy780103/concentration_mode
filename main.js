@@ -79,44 +79,104 @@ class FocusModeController {
     openAdditionalWindows() {
         console.log('Opening additional windows...');
         
+        // 単一のHTMLページに両方の機能を含める方法を試す
         // まずタイマーウィンドウを開く
-        if (!this.timerWindow || this.timerWindow.closed) {
-            // メインディスプレイの右側に配置すると仮定
-            const timerFeatures = `width=${this.displays.vertical.width},height=${this.displays.vertical.height},left=${this.displays.main.width},top=0`;
-            console.log('Opening timer window with features:', timerFeatures);
-            this.timerWindow = window.open('timer.html?vertical=true', 'timerWindow', timerFeatures);
-            
-            if (this.timerWindow) {
-                console.log('Timer window opened successfully');
-                // Wait for window to load then send settings
-                setTimeout(() => {
-                    this.updateTimerWindow();
-                    this.sendMessageToWindow(this.timerWindow, 'setVerticalMode');
-                }, 1000);
-            } else {
-                console.error('Failed to open timer window - check popup blocker');
-                alert('ポップアップがブロックされています。ブラウザの設定でこのサイトのポップアップを許可してください。');
-                return;
-            }
-        }
+        const timerFeatures = `width=${this.displays.vertical.width},height=${this.displays.vertical.height},left=${this.displays.main.width},top=0`;
+        const blackFeatures = `width=${this.displays.macbook.width},height=${this.displays.macbook.height},left=0,top=${this.displays.main.height}`;
         
-        // 少し遅延させて黒画面を開く（ポップアップブロッカー回避）
-        setTimeout(() => {
-            if (!this.blackWindow1 || this.blackWindow1.closed) {
-                // メインディスプレイの下に配置すると仮定
-                const macbookFeatures = `width=${this.displays.macbook.width},height=${this.displays.macbook.height},left=0,top=${this.displays.main.height}`;
-                console.log('Opening black window 1 with features:', macbookFeatures);
-                this.blackWindow1 = window.open('black.html?display=macbook', 'blackWindow1', macbookFeatures);
+        // 両方のウィンドウを一度に開く試み
+        try {
+            // タイマーウィンドウ
+            if (!this.timerWindow || this.timerWindow.closed) {
+                console.log('Opening timer window...');
+                this.timerWindow = window.open('timer.html?vertical=true', 'timerWindow', timerFeatures);
                 
-                if (this.blackWindow1) {
-                    console.log('Black window 1 opened successfully');
-                } else {
-                    console.error('Failed to open black window 1 - check popup blocker');
-                    // 黒画面が開けない場合は、手動で開くボタンを表示
-                    this.showManualOpenButton();
+                if (this.timerWindow) {
+                    console.log('Timer window opened successfully');
+                    setTimeout(() => {
+                        this.updateTimerWindow();
+                        this.sendMessageToWindow(this.timerWindow, 'setVerticalMode');
+                    }, 1000);
                 }
             }
-        }, 500);
+            
+            // 黒画面ウィンドウ - タイマーと同時に開く
+            if (!this.blackWindow1 || this.blackWindow1.closed) {
+                console.log('Opening black window...');
+                // 小さなトリック: about:blankを開いてから内容を書き込む
+                this.blackWindow1 = window.open('about:blank', 'blackWindow1', blackFeatures);
+                
+                if (this.blackWindow1) {
+                    // ウィンドウに直接黒画面のHTMLを書き込む
+                    this.blackWindow1.document.write(`
+                        <!DOCTYPE html>
+                        <html lang="ja">
+                        <head>
+                            <meta charset="UTF-8">
+                            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                            <title>集中モード - ブラックスクリーン</title>
+                            <style>
+                                body {
+                                    margin: 0;
+                                    padding: 0;
+                                    background: #1a1a1a;
+                                    min-height: 100vh;
+                                    display: flex;
+                                    justify-content: center;
+                                    align-items: center;
+                                    cursor: none;
+                                    overflow: hidden;
+                                }
+                                .message {
+                                    color: #333;
+                                    font-size: 1.5rem;
+                                    opacity: 0.1;
+                                    user-select: none;
+                                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+                                }
+                            </style>
+                        </head>
+                        <body>
+                            <div class="message">集中モード実行中</div>
+                            <script>
+                                // ダブルクリックでフルスクリーン
+                                document.body.addEventListener('dblclick', () => {
+                                    if (!document.fullscreenElement) {
+                                        document.documentElement.requestFullscreen().catch(err => {
+                                            console.log('Fullscreen request failed:', err);
+                                        });
+                                    } else {
+                                        document.exitFullscreen();
+                                    }
+                                });
+                                
+                                // カーソル自動非表示
+                                let cursorTimeout;
+                                function hideCursor() {
+                                    document.body.style.cursor = 'none';
+                                }
+                                function showCursor() {
+                                    document.body.style.cursor = 'default';
+                                    clearTimeout(cursorTimeout);
+                                    cursorTimeout = setTimeout(hideCursor, 2000);
+                                }
+                                document.addEventListener('mousemove', showCursor);
+                                cursorTimeout = setTimeout(hideCursor, 2000);
+                            </script>
+                        </body>
+                        </html>
+                    `);
+                    this.blackWindow1.document.close();
+                    console.log('Black window 1 created successfully');
+                } else {
+                    console.error('Failed to open black window - trying alternative method');
+                    this.showBlackScreenButton();
+                }
+            }
+        } catch (error) {
+            console.error('Error opening windows:', error);
+            this.showBlackScreenButton();
+        }
         
         // 追加の黒画面（必要に応じて）- 今は開かないようにする
         // コメント化して、2つのウィンドウのみ開くようにする
@@ -164,7 +224,7 @@ class FocusModeController {
         }
     }
     
-    showManualOpenButton() {
+    showBlackScreenButton() {
         // 既存のボタンがあれば削除
         const existingBtn = document.getElementById('manual-black-btn');
         if (existingBtn) {
@@ -183,9 +243,62 @@ class FocusModeController {
         
         btn.addEventListener('click', () => {
             const macbookFeatures = `width=${this.displays.macbook.width},height=${this.displays.macbook.height},left=0,top=${this.displays.main.height}`;
-            this.blackWindow1 = window.open('black.html?display=macbook', 'blackWindow1', macbookFeatures);
+            this.blackWindow1 = window.open('about:blank', 'blackWindow1', macbookFeatures);
             
             if (this.blackWindow1) {
+                // 黒画面のHTMLを直接書き込む
+                this.blackWindow1.document.write(`
+                    <!DOCTYPE html>
+                    <html lang="ja">
+                    <head>
+                        <meta charset="UTF-8">
+                        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                        <title>集中モード - ブラックスクリーン</title>
+                        <style>
+                            body {
+                                margin: 0;
+                                padding: 0;
+                                background: #1a1a1a;
+                                min-height: 100vh;
+                                display: flex;
+                                justify-content: center;
+                                align-items: center;
+                                cursor: none;
+                                overflow: hidden;
+                            }
+                            .message {
+                                color: #333;
+                                font-size: 1.5rem;
+                                opacity: 0.1;
+                                user-select: none;
+                                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+                            }
+                        </style>
+                    </head>
+                    <body>
+                        <div class="message">集中モード実行中</div>
+                        <script>
+                            document.body.addEventListener('dblclick', () => {
+                                if (!document.fullscreenElement) {
+                                    document.documentElement.requestFullscreen();
+                                } else {
+                                    document.exitFullscreen();
+                                }
+                            });
+                            let cursorTimeout;
+                            function hideCursor() { document.body.style.cursor = 'none'; }
+                            function showCursor() {
+                                document.body.style.cursor = 'default';
+                                clearTimeout(cursorTimeout);
+                                cursorTimeout = setTimeout(hideCursor, 2000);
+                            }
+                            document.addEventListener('mousemove', showCursor);
+                            cursorTimeout = setTimeout(hideCursor, 2000);
+                        </script>
+                    </body>
+                    </html>
+                `);
+                this.blackWindow1.document.close();
                 console.log('Black window opened manually');
                 btn.remove();
             }
