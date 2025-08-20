@@ -99,13 +99,15 @@
                     this.display.style.fontSize = '12vh';
                     this.label.style.fontSize = '3vh';
                     document.querySelector('.timer-controls').style.flexDirection = 'column';
-                    document.querySelector('.timer-controls').style.width = '80%';
+                    document.querySelector('.timer-controls').style.width = '40%';
+                    document.querySelector('.timer-controls').style.gap = '1.5rem';
                     
                     const buttons = document.querySelectorAll('.timer-control-btn');
                     buttons.forEach(btn => {
                         btn.style.width = '100%';
-                        btn.style.fontSize = '2.5vh';
-                        btn.style.padding = '2vh 4vh';
+                        btn.style.fontSize = '2.2vh';
+                        btn.style.padding = '1.8vh 2vh';
+                        btn.style.minWidth = '200px';
                     });
                 }
             }

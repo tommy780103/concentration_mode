@@ -340,7 +340,7 @@ class FocusModeController {
         btn.style.background = '#333';
         btn.style.color = 'white';
         btn.style.border = 'none';
-        btn.textContent = '🖤 黒画面を手動で開く';
+        btn.innerHTML = '<span class="material-symbols-outlined" style="vertical-align: middle; margin-right: 0.3rem;">dark_mode</span> 黒画面を手動で開く';
         
         btn.addEventListener('click', () => {
             const macbookFeatures = `width=${this.displays.macbook.width},height=${this.displays.macbook.height},left=0,top=${this.displays.main.height}`;
