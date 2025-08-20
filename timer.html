@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ポモドーロタイマー</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+    </style>
+</head>
+<body class="timer-window">
+    <div class="timer-display" id="timer-display">25:00</div>
+    <div class="timer-label" id="timer-label">作業時間</div>
+    
+    <div class="timer-controls">
+        <button class="timer-control-btn" id="start-btn">開始</button>
+        <button class="timer-control-btn" id="pause-btn" style="display: none;">一時停止</button>
+        <button class="timer-control-btn" id="reset-btn">リセット</button>
+    </div>
+
+    <script>
+        class PomodoroTimer {
+            constructor() {
+                this.workDuration = 25 * 60; // seconds
+                this.breakDuration = 5 * 60; // seconds
+                this.currentTime = this.workDuration;
+                this.isRunning = false;
+                this.isBreakTime = false;
+                this.interval = null;
+                
+                this.initializeElements();
+                this.bindEvents();
+                this.updateDisplay();
+                this.listenForMessages();
+            }
+
+            initializeElements() {
+                this.display = document.getElementById('timer-display');
+                this.label = document.getElementById('timer-label');
+                this.startBtn = document.getElementById('start-btn');
+                this.pauseBtn = document.getElementById('pause-btn');
+                this.resetBtn = document.getElementById('reset-btn');
+            }
+
+            bindEvents() {
+                this.startBtn.addEventListener('click', () => this.start());
+                this.pauseBtn.addEventListener('click', () => this.pause());
+                this.resetBtn.addEventListener('click', () => this.reset());
+                
+                // Fullscreen on double click
+                document.body.addEventListener('dblclick', () => {
+                    if (!document.fullscreenElement) {
+                        document.documentElement.requestFullscreen().catch(err => {
+                            console.log('Fullscreen request failed:', err);
+                        });
+                    } else {
+                        document.exitFullscreen();
+                    }
+                });
+            }
+
+            listenForMessages() {
+                window.addEventListener('message', (event) => {
+                    if (event.data.action === 'updateSettings') {
+                        this.workDuration = event.data.data.workDuration * 60;
+                        this.breakDuration = event.data.data.breakDuration * 60;
+                        if (!this.isRunning) {
+                            this.reset();
+                        }
+                    } else if (event.data.action === 'requestFullscreen') {
+                        document.documentElement.requestFullscreen().catch(err => {
+                            console.log('Fullscreen request failed:', err);
+                        });
+                    }
+                });
+            }
+
+            start() {
+                if (!this.isRunning) {
+                    this.isRunning = true;
+                    this.startBtn.style.display = 'none';
+                    this.pauseBtn.style.display = 'block';
+                    
+                    this.interval = setInterval(() => this.tick(), 1000);
+                }
+            }
+
+            pause() {
+                if (this.isRunning) {
+                    this.isRunning = false;
+                    this.pauseBtn.style.display = 'none';
+                    this.startBtn.style.display = 'block';
+                    
+                    if (this.interval) {
+                        clearInterval(this.interval);
+                        this.interval = null;
+                    }
+                }
+            }
+
+            reset() {
+                this.pause();
+                this.isBreakTime = false;
+                this.currentTime = this.workDuration;
+                this.label.textContent = '作業時間';
+                this.updateDisplay();
+                this.updateBackgroundColor();
+            }
+
+            tick() {
+                this.currentTime--;
+                
+                if (this.currentTime < 0) {
+                    this.switchMode();
+                } else {
+                    this.updateDisplay();
+                }
+            }
+
+            switchMode() {
+                this.isBreakTime = !this.isBreakTime;
+                
+                if (this.isBreakTime) {
+                    this.currentTime = this.breakDuration;
+                    this.label.textContent = '休憩時間';
+                    this.playNotification();
+                } else {
+                    this.currentTime = this.workDuration;
+                    this.label.textContent = '作業時間';
+                    this.playNotification();
+                }
+                
+                this.updateBackgroundColor();
+                this.updateDisplay();
+            }
+
+            updateDisplay() {
+                const minutes = Math.floor(this.currentTime / 60);
+                const seconds = this.currentTime % 60;
+                this.display.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            }
+
+            updateBackgroundColor() {
+                if (this.isBreakTime) {
+                    document.body.style.background = 'linear-gradient(135deg, #52c41a 0%, #73d13d 100%)';
+                } else {
+                    document.body.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+                }
+            }
+
+            playNotification() {
+                // Create a simple beep sound
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                oscillator.frequency.value = 800;
+                oscillator.type = 'sine';
+                
+                gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+                
+                oscillator.start(audioContext.currentTime);
+                oscillator.stop(audioContext.currentTime + 0.5);
+            }
+        }
+
+        // Initialize timer when DOM is ready
+        document.addEventListener('DOMContentLoaded', () => {
+            new PomodoroTimer();
+        });
+    </script>
+</body>
+</html>

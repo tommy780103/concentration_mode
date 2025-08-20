@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>集中モード - ブラックスクリーン</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+    </style>
+</head>
+<body class="black-screen">
+    <div class="black-screen-message">集中モード実行中</div>
+    
+    <script>
+        // Listen for fullscreen requests
+        window.addEventListener('message', (event) => {
+            if (event.data.action === 'requestFullscreen') {
+                document.documentElement.requestFullscreen().catch(err => {
+                    console.log('Fullscreen request failed:', err);
+                });
+            }
+        });
+        
+        // Allow exit fullscreen on double click
+        document.body.addEventListener('dblclick', () => {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(err => {
+                    console.log('Fullscreen request failed:', err);
+                });
+            } else {
+                document.exitFullscreen();
+            }
+        });
+        
+        // Hide cursor after 2 seconds of inactivity
+        let cursorTimeout;
+        
+        function hideCursor() {
+            document.body.style.cursor = 'none';
+        }
+        
+        function showCursor() {
+            document.body.style.cursor = 'default';
+            clearTimeout(cursorTimeout);
+            cursorTimeout = setTimeout(hideCursor, 2000);
+        }
+        
+        document.addEventListener('mousemove', showCursor);
+        
+        // Initial cursor hide
+        cursorTimeout = setTimeout(hideCursor, 2000);
+    </script>
+</body>
+</html>
